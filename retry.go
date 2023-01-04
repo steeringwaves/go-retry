@@ -1,39 +1,32 @@
 package retry
 
-// inspired by https://upgear.io/blog/simple-golang-retry-function/
-
 import (
 	"context"
 	"time"
+
+	timer "github.com/steeringwaves/go-timer"
 )
 
 type stop struct {
 	error
 }
 
-func Do(attempts int, sleep time.Duration, fn func() error) error {
-	if err := fn(); err != nil {
-		if s, ok := err.(stop); ok {
-			// Return the original error for later checking
-			return s.error
-		}
-
-		if attempts < 0 { //infinite
-			time.Sleep(sleep)
-			return Do(attempts, sleep, fn)
-		}
-
-		if attempts--; attempts > 0 {
-			time.Sleep(sleep)
-			return Do(attempts, sleep, fn)
-		}
-		return err
-	}
-	return nil
+type Options struct {
+	Context  context.Context
+	Delay    time.Duration
+	Backoff  time.Duration
+	Attempts int
 }
 
-func DoWithContext(ctx context.Context, attempts int, sleep time.Duration, fn func() error) error {
-	if err := ctx.Err(); err != nil {
+// DoWithOptions will retry a function until it returns nil.
+// This will return the last error if the function does not return nil.
+// This will cease if options Context is cancelled or the Attempts exceed the specified value.
+func DoWithOptions(opts Options, fn func() error) error {
+	if nil == opts.Context {
+		opts.Context = context.Background()
+	}
+
+	if err := opts.Context.Err(); err != nil {
 		return err
 	}
 
@@ -43,18 +36,44 @@ func DoWithContext(ctx context.Context, attempts int, sleep time.Duration, fn fu
 			return s.error
 		}
 
-		if attempts < 0 { //infinite
-			time.Sleep(sleep)
-			return DoWithContext(ctx, attempts, sleep, fn)
+		if opts.Attempts < 0 { //infinite
+			t := timer.NewTimer(opts.Delay + opts.Backoff)
+			defer t.Stop()
+
+			select {
+			case <-t.C:
+			case <-opts.Context.Done():
+				return opts.Context.Err()
+			}
+
+			return DoWithOptions(opts, fn)
 		}
 
-		if attempts--; attempts > 0 {
-			time.Sleep(sleep)
-			return DoWithContext(ctx, attempts, sleep, fn)
+		if opts.Attempts--; opts.Attempts > 0 {
+			t := timer.NewTimer(opts.Delay + opts.Backoff)
+			defer t.Stop()
+
+			select {
+			case <-t.C:
+			case <-opts.Context.Done():
+				return opts.Context.Err()
+			}
+
+			// double backoff after each attempt
+			opts.Backoff = opts.Backoff * 2
+			return DoWithOptions(opts, fn)
 		}
 		return err
 	}
 	return nil
 }
 
-//TODO add backoff, jitter functions
+// Do provides a wrapper for DoWithOptions that only exposes the number of attempts and delay
+func Do(attempts int, delay time.Duration, fn func() error) error {
+	return DoWithOptions(Options{Attempts: attempts, Delay: delay}, fn)
+}
+
+// Do provides a wrapper for DoWithOptions that only exposes the context, number of attempts and delay
+func DoWithContext(ctx context.Context, attempts int, delay time.Duration, fn func() error) error {
+	return DoWithOptions(Options{Context: ctx, Attempts: attempts, Delay: delay}, fn)
+}
