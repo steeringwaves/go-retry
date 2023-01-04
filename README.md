@@ -1,6 +1,6 @@
 # go-retry
-
 ![workflow](https://github.com/steeringwaves/go-retry/actions/workflows/test.yml/badge.svg)
+[![Go Reference](https://pkg.go.dev/badge/github.com/steeringwaves/go-retry.svg)](https://pkg.go.dev/github.com/steeringwaves/go-retry)
 
 Retry is a package that aims to make it simpler to retry a function. Inspired by https://upgear.io/blog/simple-golang-retry-function/
 
