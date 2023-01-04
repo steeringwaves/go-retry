@@ -26,11 +26,13 @@ func DoWithOptions(opts Options, fn func() error) error {
 		opts.Context = context.Background()
 	}
 
-	if err := opts.Context.Err(); err != nil {
+	var err error
+
+	if err = opts.Context.Err(); err != nil {
 		return err
 	}
 
-	if err := fn(); err != nil {
+	if err = fn(); err != nil {
 		if s, ok := err.(stop); ok {
 			// Return the original error for later checking
 			return s.error
