@@ -75,7 +75,7 @@ func Do(attempts int, delay time.Duration, fn func() error) error {
 	return DoWithOptions(Options{Attempts: attempts, Delay: delay}, fn)
 }
 
-// Do provides a wrapper for DoWithOptions that only exposes the context, number of attempts and delay
+// DoWithContext provides a wrapper for DoWithOptions that only exposes the context, number of attempts and delay
 func DoWithContext(ctx context.Context, attempts int, delay time.Duration, fn func() error) error {
 	return DoWithOptions(Options{Context: ctx, Attempts: attempts, Delay: delay}, fn)
 }
